@@ -201,7 +201,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 0}
+  m_TargetGraphic: {fileID: 86848522}
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
@@ -759,9 +759,9 @@ MonoBehaviour:
   PreviewVisible: 1
   RuntimeOcclusion: 0
   RuntimeCollider: 0
-  mTrackableName: whatsappimage2025-02-25at11
+  mTrackableName: pochacco_angry
   mInitializedInEditor: 1
-  mDataSetPath: Vuforia/Clase_AR_Marlene.xml
+  mDataSetPath: Vuforia/AR_Practicas.xml
   mAspectRatio: 1
   mImageTargetType: 0
   mWidth: 1
@@ -826,8 +826,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mObserverBehaviour: {fileID: 1068960161}
   mHiddenRoot: {fileID: 0}
-  mTargetName: whatsappimage2025-02-25at11
-  mDatasetName: Vuforia/Clase_AR_Marlene.xml
+  mTargetName: pochacco_angry
+  mDatasetName: Vuforia/AR_Practicas.xml
   mCastedBehaviour: {fileID: 1068960161}
   mMeshFilter: {fileID: 0}
   mMeshRenderer: {fileID: 0}

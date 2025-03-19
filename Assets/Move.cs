@@ -39,7 +39,7 @@ public class Move : MonoBehaviour
             yield break;
         }
 
-        Vector3 starPosition = model.transform.position;
+        Vector3 startPosition = model.transform.position;
         Vector3 endPosition = target.transform.position;
 
         float journey = 0;
@@ -47,7 +47,7 @@ public class Move : MonoBehaviour
         //Transladando el modelo 3D
         while (journey <= 1f){
             journey += Time.deltaTime * speed;
-            model.transform.position = Vector3.Lerp(starPosition, endPosition, journey);
+            model.transform.position = Vector3.Lerp(startPosition, endPosition, journey);
             yield return null;
         }
 

@@ -147,10 +147,8 @@ public class Move : MonoBehaviour
         return null;
     }
 
-    // Update is called once per frame
     void Update()
     {
-        // Opcionalmente, puedes usar teclas numéricas para activar los marcadores
         if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
         {
             MoveToMarker0();

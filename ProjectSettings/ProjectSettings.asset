@@ -863,7 +863,9 @@ PlayerSettings:
     Android: VUFORIA_ANDROID_SETTINGS
     Windows Store Apps: VUFORIA_WSA_SETTINGS
     iPhone: VUFORIA_IOS_SETTINGS
-  additionalCompilerArguments: {}
+  additionalCompilerArguments:
+    Android:
+    - 
   platformArchitecture:
     iPhone: 1
   scriptingBackend:

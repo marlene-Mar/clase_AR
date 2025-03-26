@@ -1,7 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <QCARConfig>
   <Tracking>
-    <ImageTarget name="aggretsuko" size="1.000000 0.562500" />
+    <ImageTarget name="tuxedo1" size="1.000000 1.000000" />
+    <ImageTarget name="mymelody1" size="1.000000 1.000000" />
+    <ImageTarget name="twins" size="1.000000 1.000000" />
+    <ImageTarget name="pochacolent" size="1.000000 1.000000" />
+    <ImageTarget name="cinnamonrolllet" size="1.000000 0.998613" />
+    <ImageTarget name="pompompurinN" size="1.000000 1.000000" />
+    <ImageTarget name="kittylent" size="1.000000 0.978814" />
+    <ImageTarget name="kuromilent" size="1.000000 0.994565" />
+    <ImageTarget name="cinnamoroll" size="1.000000 1.000000" />
+    <ImageTarget name="keroppi" size="1.000000 1.000000" />
+    <ImageTarget name="kitty" size="1.000000 1.000000" />
+    <ImageTarget name="aggretsuko1" size="1.000000 1.000000" />
     <ImageTarget name="pochacco_angry" size="1.000000 1.000000" />
     <ImageTarget name="chococat" size="1.000000 1.000000" />
     <ImageTarget name="pompompurin" size="1.000000 1.000000" />

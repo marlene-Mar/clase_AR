@@ -7,166 +7,322 @@ using UnityEngine.UI;
 public class GameController : MonoBehaviour
 {
     [Header("Personajes")]
-    public GameObject personajePrincipal;
-    public GameObject[] modelosVillanos;
-    public Transform[] posicionesVillanos;
+    public GameObject personajePrincipal; // Pompompurin
+    public GameObject[] modelosOponentes;
+    public GameObject[] chococat;
 
     [Header("Marcadores")]
     public ObserverBehaviour marcadorPersonaje;
-    public List<ObserverBehaviour> marcadoresVillanos = new List<ObserverBehaviour>();
+    public ObserverBehaviour marcadorChococat;
+    public List<ObserverBehaviour> marcadoresOponentes = new List<ObserverBehaviour>();
 
     [Header("UI")]
-    public Button botonAvanzar;
-    public Button botonPersonaje;
-    public Button botonOponente;
+    //Textos en pantalla
     public TMPro.TextMeshProUGUI textoEstadoJuego;
-    public TMPro.TextMeshProUGUI textoPuntajePersonaje;
-    public TMPro.TextMeshProUGUI textoPuntajeOponente;
+    public TMPro.TextMeshProUGUI textoPuntajePersonaje; //Puntaje de Pompompurin
+    public TMPro.TextMeshProUGUI textoPuntajeOponente; //Puntaje del oponente
+
+    //Botones de interacción
+    public Button botonReiniciar; //Reinicia el juego
+    public Button botonPersonaje; //Jugar Pompompurin
+    public Button botonOponente; //Jugar oponente
 
     [Header("Configuración")]
     public float velocidadMovimiento = 2.0f;
+    public int oponentesNecesariosParaGanar = 2;
+    public float distanciaMinimaCombate = 0.1f;
+    public float distanciaDeteccionChococat = 0.5f;
+    public float minSwipeDistance = 30f; // Distancia mínima para considerar como swipe
 
     // Variables privadas
     private bool personajeEnMovimiento = false;
-    private int indiceVillanoActual = -1;
+    private List<int> indicesMarcadoresVisibles = new List<int>();
+    private bool esperandoSeleccion = false;
+    private int indiceOponenteActual = -1;
+    private GameObject oponenteActual;
+
+    //Datos del juego
     private int puntajePersonaje = 0;
     private int puntajeOponente = 0;
     private int victoriasPersonaje = 0;
     private int victoriasOponente = 0;
-    private GameObject villanoActual;
     private bool enCombate = false;
+    private bool esperandoNuevosMarcadores = false;
+    private HashSet<int> oponentesDerrotados = new HashSet<int>(); // Cambiado a HashSet para búsquedas más eficientes
+
+    // Variables para el control de gestos touch
+    private Vector2 touchStartPosition;
+    private bool isTouchTracking = false;
 
     void Start()
     {
-        // Inicializar botones
-        botonAvanzar.onClick.AddListener(AvanzarAMarcadorAleatorio);
-        botonPersonaje.onClick.AddListener(LanzarDadoPersonaje);
-        botonOponente.onClick.AddListener(LanzarDadoOponente);
+        // Configurar botones
+        ConfigurarBotones();
 
-        // Desactivar botones de combate inicialmente
-        botonPersonaje.interactable = false;
-        botonOponente.interactable = false;
+        // Desactivar todos los modelos al inicio
+        DesactivarTodosLosModelos();
 
-        // Verificar que el personaje principal esté en su marcador inicial
-        if (marcadorPersonaje.TargetStatus.Status == Status.TRACKED)
-        {
-            personajePrincipal.SetActive(true);
-            botonAvanzar.interactable = true;
-            ActualizarEstadoJuego("Presiona Avanzar para comenzar.");
-        }
-        else
-        {
-            ActualizarEstadoJuego("Coloca el marcador del personaje principal en la cámara.");
-            botonAvanzar.interactable = false;
-        }
-
-        // Desactivar todos los villanos al inicio
-        foreach (GameObject villano in modelosVillanos)
-        {
-            villano.SetActive(false);
-        }
+        // Mensaje inicial
+        ActualizarEstadoJuego("¿Pompompurin?");
     }
 
     void Update()
     {
-        // Verificar estado de los marcadores
-        VerificarMarcadores();
+        // Verificar marcador del personaje
+        VerificarMarcadorPersonaje();
+
+        // Manejo de selección de oponentes si hay 2 marcadores visibles
+        if (esperandoSeleccion && indicesMarcadoresVisibles.Count == 2)
+        {
+            ActualizarEstadoJuego("Desliza izquierda o derecha para elegir oponente");
+            DetectarGestoSwipe();
+        }
+
+        // Verificar si hemos llegado a Chococat y debemos mostrar mensaje de victoria
+        // Esto tiene prioridad sobre otros mensajes
+        if (oponentesDerrotados.Count >= oponentesNecesariosParaGanar &&
+            EsMarcadorVisible(marcadorChococat) &&
+            personajePrincipal.activeInHierarchy)
+        {
+            float distanciaAChococat = Vector3.Distance(personajePrincipal.transform.position, marcadorChococat.transform.position);
+
+            // Si estamos muy cerca de Chococat, mostramos el mensaje de victoria
+            if (distanciaAChococat < distanciaDeteccionChococat)
+            {
+                textoEstadoJuego.text = "¡Rescataste a Chococat!";
+                GanaJuego();
+                return; // Salir para evitar sobrescribir el mensaje
+            }
+        }
+
+        // Verificar otras condiciones de Chococat si no hemos ganado aún
+        VerificarCondicionesChococat();
     }
 
-    private void VerificarMarcadores()
+    private void ConfigurarBotones()
     {
-        // Verificar marcador del personaje
-        if (marcadorPersonaje.TargetStatus.Status == Status.TRACKED ||
-            marcadorPersonaje.TargetStatus.Status == Status.EXTENDED_TRACKED)
-        {
-            personajePrincipal.SetActive(true);
+        // Configurar listeners de botones
+        botonReiniciar.onClick.RemoveAllListeners();
+        botonPersonaje.onClick.RemoveAllListeners();
+        botonOponente.onClick.RemoveAllListeners();
 
-            if (!personajeEnMovimiento && !enCombate)
+        botonReiniciar.onClick.AddListener(ReiniciarJuego);
+        botonPersonaje.onClick.AddListener(TiraPersonaje);
+        botonOponente.onClick.AddListener(TiraOponente);
+
+        // Desactivar botones de juego
+        botonPersonaje.interactable = false;
+        botonOponente.interactable = false;
+    }
+
+    private void DesactivarTodosLosModelos()
+    {
+        // Desactivar todos los modelos de oponentes
+        foreach (GameObject oponente in modelosOponentes)
+        {
+            oponente.SetActive(false);
+        }
+
+        // Desactivar modelos de Chococat
+        foreach (GameObject cat in chococat)
+        {
+            cat.SetActive(false);
+        }
+
+        personajePrincipal.SetActive(false);
+    }
+
+    private bool EsMarcadorVisible(ObserverBehaviour marcador)
+    {
+        return marcador.TargetStatus.Status == Status.TRACKED ||
+               marcador.TargetStatus.Status == Status.EXTENDED_TRACKED;
+    }
+
+    private void VerificarMarcadorPersonaje()
+    {
+        bool isPersonajeVisible = EsMarcadorVisible(marcadorPersonaje);
+        personajePrincipal.SetActive(isPersonajeVisible);
+
+        if (isPersonajeVisible)
+        {
+            if (!personajeEnMovimiento && !esperandoSeleccion && indiceOponenteActual == -1)
             {
-                botonAvanzar.interactable = true;
+                // Si el personaje está visible y no estamos en selección, buscar oponentes
+                BuscarMarcadoresOponentes();
             }
         }
         else
         {
-            personajePrincipal.SetActive(false);
-            botonAvanzar.interactable = false;
-            if (!enCombate)
+            ActualizarEstadoJuego("¿Pompompurin?");
+        }
+    }
+
+    private void BuscarMarcadoresOponentes()
+    {
+        // Verificar si hay al menos dos marcadores de oponentes visibles
+        indicesMarcadoresVisibles.Clear();
+
+        for (int i = 0; i < marcadoresOponentes.Count; i++)
+        {
+            // Solo considerar marcadores que no han sido derrotados
+            if (!oponentesDerrotados.Contains(i) && EsMarcadorVisible(marcadoresOponentes[i]))
             {
-                ActualizarEstadoJuego("Marcador del personaje perdido. Colócalo en la cámara.");
+                indicesMarcadoresVisibles.Add(i);
             }
         }
 
-        // Si estamos en combate, verificar el marcador del villano
-        if (enCombate && indiceVillanoActual >= 0 && indiceVillanoActual < marcadoresVillanos.Count)
+        // Si hay al menos dos marcadores visibles, iniciar selección
+        if (indicesMarcadoresVisibles.Count >= 2)
         {
-            if (marcadoresVillanos[indiceVillanoActual].TargetStatus.Status != Status.TRACKED &&
-                marcadoresVillanos[indiceVillanoActual].TargetStatus.Status != Status.EXTENDED_TRACKED)
+            // Limitamos a solo 2 marcadores si hay más
+            if (indicesMarcadoresVisibles.Count > 2)
             {
-                ActualizarEstadoJuego("Marcador del oponente perdido. Colócalo en la cámara.");
-                botonPersonaje.interactable = false;
-                botonOponente.interactable = false;
+                indicesMarcadoresVisibles = indicesMarcadoresVisibles.GetRange(0, 2);
             }
-            else
+
+            esperandoSeleccion = true;
+            ActualizarEstadoJuego("Elegir un oponente");
+        }
+        else
+        {
+            MostrarEstadoSegunProgreso();
+        }
+    }
+
+    private void MostrarEstadoSegunProgreso()
+    {
+        if (oponentesDerrotados.Count >= oponentesNecesariosParaGanar)
+        {
+            ActualizarEstadoJuego($"¡Has derrotado a {oponentesNecesariosParaGanar} oponentes!\nVe hacia Chococat.");
+
+            // Comprobar si el marcador final está visible
+            if (EsMarcadorVisible(marcadorChococat))
             {
-                if (!personajeEnMovimiento)
+                // Activar modelo de Chococat
+                foreach (GameObject cat in chococat)
                 {
-                    botonPersonaje.interactable = true;
-                    botonOponente.interactable = true;
+                    cat.SetActive(true);
                 }
             }
         }
+        else
+        {
+            ActualizarEstadoJuego("Buscando oponentes... Se necesitan marcadores no derrotados.");
+        }
     }
 
-    public void AvanzarAMarcadorAleatorio()
+    private void VerificarCondicionesChococat()
     {
-        if (personajeEnMovimiento || marcadoresVillanos.Count == 0)
-            return;
-
-        // Seleccionar un marcador aleatorio que no sea el actual
-        int nuevoIndice;
-        if (marcadoresVillanos.Count > 1 && indiceVillanoActual >= 0)
+        if (oponentesDerrotados.Count >= oponentesNecesariosParaGanar && EsMarcadorVisible(marcadorChococat))
         {
-            do
+            // Activar modelo de Chococat
+            foreach (GameObject cat in chococat)
             {
-                nuevoIndice = Random.Range(0, marcadoresVillanos.Count);
-            } while (nuevoIndice == indiceVillanoActual);
-        }
-        else
-        {
-            nuevoIndice = Random.Range(0, marcadoresVillanos.Count);
-        }
-
-        indiceVillanoActual = nuevoIndice;
-        ObserverBehaviour marcadorDestino = marcadoresVillanos[indiceVillanoActual];
-
-        // Verificar que el marcador destino esté visible
-        if (marcadorDestino.TargetStatus.Status == Status.TRACKED ||
-            marcadorDestino.TargetStatus.Status == Status.EXTENDED_TRACKED)
-        {
-            // Desactivar villanos anteriores
-            foreach (GameObject villano in modelosVillanos)
-            {
-                villano.SetActive(false);
+                cat.SetActive(true);
             }
 
-            // Activar el villano actual
-            villanoActual = modelosVillanos[indiceVillanoActual % modelosVillanos.Length];
-            villanoActual.SetActive(true);
+            // Verificar si el personaje está en el marcador de Chococat
+            float distanciaAChococat = Vector3.Distance(personajePrincipal.transform.position, marcadorChococat.transform.position);
+            if (distanciaAChococat < distanciaDeteccionChococat && personajePrincipal.activeInHierarchy)
+            {
+                ActualizarEstadoJuego("¡Rescataste a Chococat!");
+                GanaJuego();
+                return; // Salir de Update para evitar sobrescribir el mensaje
+            }
+            else
+            {
+                ActualizarEstadoJuego("¡Has derrotado a " + oponentesNecesariosParaGanar + " oponentes! Ve hacia Chococat para ganar.");
+            }
 
-            // Mover el personaje
+            // Si no estamos en combate ni esperando selección, permitir ir a Chococat
+            if (!enCombate && !esperandoSeleccion && !personajeEnMovimiento &&
+                distanciaAChococat > distanciaMinimaCombate)
+            {
+                // Mover automáticamente hacia Chococat
+                StartCoroutine(MoverPersonaje(marcadorChococat.transform.position));
+            }
+        }
+    }
+
+    private void DetectarGestoSwipe()
+    {
+        // Comprobar si hay toques en la pantalla
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+
+            switch (touch.phase)
+            {
+                case TouchPhase.Began:
+                    // Guardar la posición inicial del toque
+                    touchStartPosition = touch.position;
+                    isTouchTracking = true;
+                    break;
+
+                case TouchPhase.Ended:
+                case TouchPhase.Canceled:
+                    if (isTouchTracking)
+                    {
+                        // Calcular la distancia horizontal del deslizamiento
+                        float swipeDistanceX = touch.position.x - touchStartPosition.x;
+
+                        // Verificar si la distancia es suficiente para considerarlo un swipe
+                        if (Mathf.Abs(swipeDistanceX) > minSwipeDistance)
+                        {
+                            // Seleccionar marcador según dirección del swipe (0 para izquierda, 1 para derecha)
+                            SeleccionarMarcadorPorGesto(swipeDistanceX > 0 ? 1 : 0);
+                        }
+
+                        isTouchTracking = false;
+                    }
+                    break;
+            }
+        }
+    }
+
+    private void SeleccionarMarcadorPorGesto(int indiceSeleccion)
+    {
+        if (!esperandoSeleccion || indicesMarcadoresVisibles.Count != 2)
+            return;
+
+        // Obtener el índice real del marcador seleccionado
+        indiceOponenteActual = indicesMarcadoresVisibles[indiceSeleccion];
+        ObserverBehaviour marcadorDestino = marcadoresOponentes[indiceOponenteActual];
+
+        // Verificar que el marcador siga visible
+        if (EsMarcadorVisible(marcadorDestino))
+        {
+            // Desactivar selección
+            esperandoSeleccion = false;
+
+            // Indicar la selección al usuario
+            ActualizarEstadoJuego("Oponente " + (indiceSeleccion == 0 ? "izquierdo" : "derecho") + " seleccionado");
+
+            // Mover el personaje al marcador seleccionado
             StartCoroutine(MoverPersonaje(marcadorDestino.transform.position));
-            ActualizarEstadoJuego("Avanzando hacia el oponente...");
         }
         else
         {
-            ActualizarEstadoJuego("El marcador destino no está visible. Inténtalo de nuevo.");
+            // Si el marcador ya no es visible, cancelar la selección
+            esperandoSeleccion = false;
+            indicesMarcadoresVisibles.Clear();
+            ActualizarEstadoJuego("¿Pompompurin?");
         }
     }
 
     private IEnumerator MoverPersonaje(Vector3 posicionDestino)
     {
         personajeEnMovimiento = true;
-        botonAvanzar.interactable = false;
+
+        //Mensaje específico según destino
+        if (posicionDestino == marcadorChococat.transform.position)
+        {
+            ActualizarEstadoJuego("Avanzando hacia Chococat...");
+        }
+        else
+        {
+            ActualizarEstadoJuego("Avanzando a oponente");
+        }
 
         Vector3 posicionInicial = personajePrincipal.transform.position;
         float tiempoTranscurrido = 0;
@@ -179,31 +335,72 @@ public class GameController : MonoBehaviour
         }
 
         personajeEnMovimiento = false;
+
+        // Determinar acción según destino
+        if (posicionDestino == marcadorChococat.transform.position && oponentesDerrotados.Count >= oponentesNecesariosParaGanar)
+        {
+            ActualizarEstadoJuego("¡Rescataste a Chococat!");
+            GanaJuego();
+            yield break;
+        }
+
+        // Si estamos regresando al marcador inicial tras perder, no iniciar combate
+        if (Vector3.Distance(posicionDestino, marcadorPersonaje.transform.position) < distanciaMinimaCombate)
+        {
+            ReiniciarVariablesCombate();
+            yield break;
+        }
+
+        // Iniciar el combate
+        IniciarCombate(posicionDestino);
+    }
+
+    private void IniciarCombate(Vector3 posicionDestino)
+    {
         enCombate = true;
 
-        ActualizarEstadoJuego("Presiona tu botón");
+        // Activar el modelo del oponente seleccionado
+        oponenteActual = modelosOponentes[indiceOponenteActual % modelosOponentes.Length];
+        oponenteActual.SetActive(true);
+
+        // Posicionar el oponente en el marcador
+        oponenteActual.transform.position = posicionDestino;
+        ActualizarEstadoJuego("¡Llegaste al oponente!\nPresiona tu botón");
+
+        // Activar los botones de juego
         botonPersonaje.interactable = true;
         botonOponente.interactable = false;
 
-        // Resetear los textos de puntaje
+        LimpiarTextosPuntaje();
+    }
+
+    private void ActualizarEstadoJuego(string mensaje)
+    {
+        textoEstadoJuego.text = mensaje;
+        Debug.Log(mensaje);
+    }
+
+    private void LimpiarTextosPuntaje()
+    {
         textoPuntajePersonaje.text = "Personaje: -";
         textoPuntajeOponente.text = "Oponente: -";
     }
 
-    public void LanzarDadoPersonaje()
+    public void TiraPersonaje()
     {
-        puntajePersonaje = Random.Range(1, 11);
+        //Tira un dado valores de 1 al 6
+        puntajePersonaje = Random.Range(1, 7);
         textoPuntajePersonaje.text = "Personaje: " + puntajePersonaje;
 
         botonPersonaje.interactable = false;
         botonOponente.interactable = true;
 
-        ActualizarEstadoJuego("Has sacado un " + puntajePersonaje + ". Ahora es turno del oponente.");
+        ActualizarEstadoJuego("Obtuviste " + puntajePersonaje + "\nTurno del oponente.");
     }
 
-    public void LanzarDadoOponente()
+    public void TiraOponente()
     {
-        puntajeOponente = Random.Range(1, 11);
+        puntajeOponente = Random.Range(1, 7);
         textoPuntajeOponente.text = "Oponente: " + puntajeOponente;
 
         botonOponente.interactable = false;
@@ -212,31 +409,45 @@ public class GameController : MonoBehaviour
         if (puntajePersonaje > puntajeOponente)
         {
             victoriasPersonaje++;
-            ActualizarEstadoJuego("¡Ganaste esta ronda! (" + victoriasPersonaje + " de 2)");
+            ActualizarEstadoJuego("¡Ganaste esta ronda!\n(" + victoriasPersonaje + " de 2)");
+
+            // Si el personaje ha vencido completamente al oponente
+            if (victoriasPersonaje >= 2)
+            {
+                ActualizarEstadoJuego("Oponente vencido. \nPon otro marcador.");
+                // Agregar el oponente a la lista de derrotados
+                if (!oponentesDerrotados.Contains(indiceOponenteActual))
+                {
+                    oponentesDerrotados.Add(indiceOponenteActual);
+                }
+                esperandoNuevosMarcadores = true;
+                StartCoroutine(FinalizarCombate(true));
+            }
+            else
+            {
+                StartCoroutine(PrepararNuevaRonda());
+            }
         }
         else if (puntajePersonaje < puntajeOponente)
         {
             victoriasOponente++;
-            ActualizarEstadoJuego("Perdiste esta ronda. (" + victoriasOponente + " de 2)");
-        }
-        else
-        {
-            ActualizarEstadoJuego("¡Empate! Nadie gana esta ronda.");
-        }
+            ActualizarEstadoJuego("Perdiste esta ronda... \n(" + victoriasOponente + " de 2)");
 
-        // Verificar si alguien ganó el combate (2 de 3)
-        if (victoriasPersonaje >= 2)
-        {
-            StartCoroutine(FinalizarCombate(true));
-        }
-        else if (victoriasOponente >= 2)
-        {
-            StartCoroutine(FinalizarCombate(false));
+            // Si el oponente ha vencido completamente al personaje
+            if (victoriasOponente >= 2)
+            {
+                ActualizarEstadoJuego("Has perdido el combate.\nRegresando al inicio...");
+                StartCoroutine(FinalizarCombate(false));
+            }
+            else
+            {
+                StartCoroutine(PrepararNuevaRonda());
+            }
         }
         else
         {
-            // Continuar con otra ronda
-            StartCoroutine(PrepararNuevaRonda());
+            ActualizarEstadoJuego("¡Empate! Vuelve a tirar.");
+            botonPersonaje.interactable = true;
         }
     }
 
@@ -244,13 +455,12 @@ public class GameController : MonoBehaviour
     {
         yield return new WaitForSeconds(2.0f);
 
-        textoPuntajePersonaje.text = "Personaje: -";
-        textoPuntajeOponente.text = "Oponente: -";
+        LimpiarTextosPuntaje();
 
         botonPersonaje.interactable = true;
         botonOponente.interactable = false;
 
-        ActualizarEstadoJuego("Nueva ronda. Presiona el botón de Personaje para lanzar tu dado.");
+        ActualizarEstadoJuego("Nueva ronda.\nTira para continuar.");
     }
 
     private IEnumerator FinalizarCombate(bool personajeGano)
@@ -259,33 +469,171 @@ public class GameController : MonoBehaviour
 
         if (personajeGano)
         {
-            ActualizarEstadoJuego("¡Has ganado el combate! Avanza.");
-            // Desactivar el villano actual
-            villanoActual.SetActive(false);
+            ActualizarEstadoJuego("¡Has ganado el combate!\nAvanza.");
+            // Desactivar el modelo del oponente
+            if (oponenteActual != null)
+            {
+                oponenteActual.SetActive(false);
+            }
+
+            // Resetear el oponente actual
+            oponenteActual = null;
+
+            // Verificar el número de oponentes derrotados
+            if (oponentesDerrotados.Count >= oponentesNecesariosParaGanar)
+            {
+                ActualizarEstadoJuego($"¡Ya has derrotado a {oponentesNecesariosParaGanar} oponentes!\nBusca a Chococat para ganar.");
+            }
+            else
+            {
+                ActualizarEstadoJuego("Oponentes derrotados: " + oponentesDerrotados.Count + "\nBusca más oponentes.");
+            }
+
+            // Activar espera para ver nuevos marcadores
+            StartCoroutine(EsperarNuevosMarcadores());
         }
         else
         {
-            ActualizarEstadoJuego("Has perdido el combate. Regresando al inicio...");
+            ActualizarEstadoJuego("Has perdido el combate.\nRegresando al inicio...");
+            // Desactivar el modelo del oponente
+            if (oponenteActual != null)
+            {
+                oponenteActual.SetActive(false);
+            }
             // Regresar al personaje a su posición inicial
             StartCoroutine(MoverPersonaje(marcadorPersonaje.transform.position));
         }
 
+        // Resetear variables
+        ReiniciarVariablesCombate();
+    }
+
+    private void ReiniciarVariablesCombate()
+    {
         // Resetear contadores
         victoriasPersonaje = 0;
         victoriasOponente = 0;
+        puntajePersonaje = 0;
+        puntajeOponente = 0;
+
+        // Resetear estado de combate
+        enCombate = false;
+        indiceOponenteActual = -1;
+
+        // Desactivar botones de combate
+        botonPersonaje.interactable = false;
+        botonOponente.interactable = false;
+
+        // Limpiar textos
+        LimpiarTextosPuntaje();
+    }
+
+    private IEnumerator EsperarNuevosMarcadores()
+    {
+        esperandoNuevosMarcadores = true;
+
+        // Esperar un tiempo para que el usuario mueva la cámara y busque nuevos marcadores
+        yield return new WaitForSeconds(3.0f);
 
         // Salir del modo combate
         enCombate = false;
+        esperandoNuevosMarcadores = false;
+        indiceOponenteActual = -1;
 
-        // Activar botón de avanzar
-        botonAvanzar.interactable = true;
-        botonPersonaje.interactable = false;
-        botonOponente.interactable = false;
+        // Verificar estado del juego
+        ActualizarEstadoSegunProgreso();
     }
 
-    private void ActualizarEstadoJuego(string mensaje)
+    private void ActualizarEstadoSegunProgreso()
     {
-        textoEstadoJuego.text = mensaje;
-        Debug.Log(mensaje);
+        int oponentesRestantes = marcadoresOponentes.Count - oponentesDerrotados.Count;
+        int oponentesDerrotadosCount = oponentesDerrotados.Count;
+
+        if (oponentesDerrotadosCount >= oponentesNecesariosParaGanar)
+        {
+            ActualizarEstadoJuego($"¡Ya has derrotado a {oponentesNecesariosParaGanar} oponentes!\nBusca a Chococat para ganar.");
+        }
+        else if (oponentesRestantes > 0)
+        {
+            // Indicar que ya puede seleccionar nuevos marcadores
+            ActualizarEstadoJuego("Listo para seguir.\nBusca 2 marcadores para elegir\nOponentes restantes: " + oponentesRestantes);
+        }
+        else
+        {
+            ActualizarEstadoJuego("¡Has derrotado a todos los oponentes!\nBusca a Chococat para finalizar.");
+        }
+    }
+
+    public void GanaJuego()
+    {
+        // Verificar que se hayan derrotado suficientes oponentes
+        if (oponentesDerrotados.Count < oponentesNecesariosParaGanar)
+        {
+            ActualizarEstadoJuego($"Debes derrotar al menos {oponentesNecesariosParaGanar} oponentes primero.");
+            return;
+        }
+
+        // Desactivar interacción
+        esperandoSeleccion = false;
+        personajeEnMovimiento = false;
+        enCombate = false;
+
+        // Desactivar botones
+        botonPersonaje.interactable = false;
+        botonOponente.interactable = false;
+
+        // Mostrar mensaje de victoria con texto específico de rescate
+        textoEstadoJuego.text = "¡Rescataste a Chococat!";
+
+        // Desactivar todos los oponentes
+        foreach (GameObject oponente in modelosOponentes)
+        {
+            oponente.SetActive(false);
+        }
+
+        // Activar todos los Chococat
+        foreach (GameObject cat in chococat)
+        {
+            cat.SetActive(true);
+        }
+    }
+
+    public void ReiniciarJuego()
+    {
+        // Reiniciar todas las variables
+        esperandoSeleccion = false;
+        personajeEnMovimiento = false;
+        indiceOponenteActual = -1;
+        indicesMarcadoresVisibles.Clear();
+        oponenteActual = null;
+        isTouchTracking = false;
+        enCombate = false;
+        esperandoNuevosMarcadores = false;
+        oponentesDerrotados.Clear();
+
+        // Resetear contadores
+        victoriasPersonaje = 0;
+        victoriasOponente = 0;
+        puntajePersonaje = 0;
+        puntajeOponente = 0;
+
+        // Desactivar todos los modelos
+        DesactivarTodosLosModelos();
+
+        // Limpiar textos
+        LimpiarTextosPuntaje();
+
+        // Desactivar botones
+        botonPersonaje.interactable = false;
+        botonOponente.interactable = false;
+
+        // Verificar personaje principal
+        if (EsMarcadorVisible(marcadorPersonaje))
+        {
+            StartCoroutine(MoverPersonaje(marcadorPersonaje.transform.position));
+            personajePrincipal.SetActive(true);
+        }
+
+        ActualizarEstadoJuego("Juego reiniciado");
     }
 }

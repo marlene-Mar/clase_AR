@@ -643,40 +643,8 @@ public class GameController : MonoBehaviour
 
     public void ReiniciarJuego()
     {
-        // Reiniciar todas las variables
-        esperandoSeleccion = false;
-        personajeEnMovimiento = false;
-        indiceOponenteActual = -1;
-        indicesMarcadoresVisibles.Clear();
-        oponenteActual = null;
-        isTouchTracking = false;
-        enCombate = false;
-        esperandoNuevosMarcadores = false;
-        oponentesDerrotados.Clear(); 
-
-        // Resetear contadores
-        victoriasPersonaje = 0;
-        victoriasOponente = 0;
-        puntajePersonaje = 0;
-        puntajeOponente = 0;
-
-        // Desactivar todos los modelos
-        DesactivarTodosLosModelos();
-
-        // Limpiar textos
-        LimpiarTextosPuntaje();
-
-        // Desactivar botones
-        botonPersonaje.interactable = false;
-        botonOponente.interactable = false;
-
-        // Verificar personaje principal
-        if (EsMarcadorVisible(marcadorPersonaje))
-        {
-            StartCoroutine(MoverPersonaje(marcadorPersonaje.transform.position));
-            personajePrincipal.SetActive(true);
-        }
-
-         ActualizarEstadoJuego("Juego reiniciado");
+        ActualizarEstadoJuego("Reiniciando...");
+        //CARGAR LA ESCENA DE NUEVO
+        UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
     }
 }

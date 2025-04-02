@@ -8,8 +8,8 @@ public class GameController : MonoBehaviour
 {
     [Header("Personajes")]
     public GameObject personajePrincipal; // Pompompurin
-    public GameObject[] modelosOponentes;
-    public GameObject[] chococat;
+    public GameObject[] modelosOponentes; //Oponentes
+    public GameObject[] chococat; //Chococat
 
     [Header("Marcadores")]
     public ObserverBehaviour marcadorPersonaje;
@@ -40,6 +40,8 @@ public class GameController : MonoBehaviour
     private bool esperandoSeleccion = false;
     private int indiceOponenteActual = -1;
     private GameObject oponenteActual;
+    private bool mostradaMensajeBienvenida = false;
+
 
     //Datos del juego
     private int puntajePersonaje = 0;
@@ -48,7 +50,10 @@ public class GameController : MonoBehaviour
     private int victoriasOponente = 0;
     private bool enCombate = false;
     private bool esperandoNuevosMarcadores = false;
-    private HashSet<int> oponentesDerrotados = new HashSet<int>(); // Cambiado a HashSet para búsquedas más eficientes
+    private HashSet<int> oponentesDerrotados = new HashSet<int>(); //Identificar oponentes ya derrotados
+
+    string fullText = "Debes derrotar a 2 oponentes \ny rescatarlos del control de los malos\nSalva a Chococat";
+    public float delay = 0.05f; // Tiempo entre cada letra
 
     // Variables para el control de gestos touch
     private Vector2 touchStartPosition;
@@ -65,6 +70,7 @@ public class GameController : MonoBehaviour
         // Mensaje inicial
         ActualizarEstadoJuego("¿Pompompurin?");
     }
+
 
     void Update()
     {
@@ -145,6 +151,17 @@ public class GameController : MonoBehaviour
 
         if (isPersonajeVisible)
         {
+            // En tu método VerificarMarcadorPersonaje()
+            if (isPersonajeVisible && !mostradaMensajeBienvenida)
+            {
+                StartCoroutine(ShowSequentialTexts(
+                    "Bienvenido Pompompurin. Debes derrotar a 2 oponentes y rescatarlos del control de los malos.¡Salva a Chococat!",
+                    "Para iniciar debes contar con 2 oponentes",
+                    2.0f  // 2 segundos de espera entre mensajes
+                ));
+                mostradaMensajeBienvenida = true;
+            }
+
             if (!personajeEnMovimiento && !esperandoSeleccion && indiceOponenteActual == -1)
             {
                 // Si el personaje está visible y no estamos en selección, buscar oponentes
@@ -154,7 +171,34 @@ public class GameController : MonoBehaviour
         else
         {
             ActualizarEstadoJuego("¿Pompompurin?");
+            mostradaMensajeBienvenida = false;
         }
+    }
+
+    //Corrutina indicaciones del juego
+    IEnumerator ShowText()
+    {
+        textoEstadoJuego.text = ""; // Inicia con un texto vacío
+        foreach (char letter in fullText)
+        {
+            textoEstadoJuego.text += letter;
+            yield return new WaitForSeconds(delay); // Espera antes de mostrar la siguiente letra
+        }
+    }
+
+    // Nueva corrutina para mostrar dos mensajes secuenciales
+    IEnumerator ShowSequentialTexts(string primerMensaje, string segundoMensaje, float tiempoEspera = 1.0f)
+    {
+        // Mostrar primer mensaje
+        fullText = primerMensaje;
+        yield return StartCoroutine(ShowText());
+
+        // Esperar el tiempo especificado entre mensajes
+        yield return new WaitForSeconds(tiempoEspera);
+
+        // Mostrar segundo mensaje
+        fullText = segundoMensaje;
+        yield return StartCoroutine(ShowText());
     }
 
     private void BuscarMarcadoresOponentes()
@@ -205,10 +249,10 @@ public class GameController : MonoBehaviour
                 }
             }
         }
-        else
-        {
-            ActualizarEstadoJuego("Buscando oponentes... Se necesitan marcadores no derrotados.");
-        }
+        //else
+        //{
+        //    ActualizarEstadoJuego("Buscando oponentes... Se necesitan marcadores no derrotados.");
+        //}
     }
 
     private void VerificarCondicionesChococat()
@@ -395,7 +439,7 @@ public class GameController : MonoBehaviour
         botonPersonaje.interactable = false;
         botonOponente.interactable = true;
 
-        ActualizarEstadoJuego("Obtuviste " + puntajePersonaje + "\nTurno del oponente.");
+        ActualizarEstadoJuego("Obtuviste: " + puntajePersonaje + "\nTurno del oponente.");
     }
 
     public void TiraOponente()
@@ -609,7 +653,7 @@ public class GameController : MonoBehaviour
         isTouchTracking = false;
         enCombate = false;
         esperandoNuevosMarcadores = false;
-        oponentesDerrotados.Clear();
+        oponentesDerrotados.Clear(); 
 
         // Resetear contadores
         victoriasPersonaje = 0;
@@ -634,6 +678,6 @@ public class GameController : MonoBehaviour
             personajePrincipal.SetActive(true);
         }
 
-        ActualizarEstadoJuego("Juego reiniciado");
+         ActualizarEstadoJuego("Juego reiniciado");
     }
 }

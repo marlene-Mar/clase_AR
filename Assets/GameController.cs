@@ -85,7 +85,6 @@ public class GameController : MonoBehaviour
         }
 
         // Verificar si hemos llegado a Chococat y debemos mostrar mensaje de victoria
-        // Esto tiene prioridad sobre otros mensajes
         if (oponentesDerrotados.Count >= oponentesNecesariosParaGanar &&
             EsMarcadorVisible(marcadorChococat) &&
             personajePrincipal.activeInHierarchy)
@@ -175,7 +174,8 @@ public class GameController : MonoBehaviour
         }
     }
 
-    //Corrutina indicaciones del juego
+    //Corrutinas de indicaciones del juego
+
     IEnumerator ShowText()
     {
         textoEstadoJuego.text = ""; // Inicia con un texto vacío
@@ -186,7 +186,6 @@ public class GameController : MonoBehaviour
         }
     }
 
-    // Nueva corrutina para mostrar dos mensajes secuenciales
     IEnumerator ShowSequentialTexts(string primerMensaje, string segundoMensaje, float tiempoEspera = 1.0f)
     {
         // Mostrar primer mensaje
@@ -200,6 +199,8 @@ public class GameController : MonoBehaviour
         fullText = segundoMensaje;
         yield return StartCoroutine(ShowText());
     }
+
+    //Función para buscar marcadores de oponentes, solo si hay al menos 2 visibles
 
     private void BuscarMarcadoresOponentes()
     {
@@ -233,6 +234,8 @@ public class GameController : MonoBehaviour
         }
     }
 
+
+    //Funciones para mostrar mensajes y verificar condiciones de victoria
     private void MostrarEstadoSegunProgreso()
     {
         if (oponentesDerrotados.Count >= oponentesNecesariosParaGanar)
@@ -249,10 +252,6 @@ public class GameController : MonoBehaviour
                 }
             }
         }
-        //else
-        //{
-        //    ActualizarEstadoJuego("Buscando oponentes... Se necesitan marcadores no derrotados.");
-        //}
     }
 
     private void VerificarCondicionesChococat()

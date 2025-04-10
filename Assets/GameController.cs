@@ -57,7 +57,9 @@ public class GameController : MonoBehaviour
 
     // Variables para el control de gestos touch
     private Vector2 touchStartPosition;
+    private float distanciaSwipe = 30f;
     private bool isTouchTracking = false;
+
 
     void Start()
     {
@@ -74,6 +76,7 @@ public class GameController : MonoBehaviour
 
     void Update()
     {
+
         // Verificar marcador del personaje
         VerificarMarcadorPersonaje();
 
@@ -91,13 +94,6 @@ public class GameController : MonoBehaviour
         {
             float distanciaAChococat = Vector3.Distance(personajePrincipal.transform.position, marcadorChococat.transform.position);
 
-            // Si estamos muy cerca de Chococat, mostramos el mensaje de victoria
-            if (distanciaAChococat < distanciaDeteccionChococat)
-            {
-                textoEstadoJuego.text = "¡Rescataste a Chococat!";
-                GanaJuego();
-                return; // Salir para evitar sobrescribir el mensaje
-            }
         }
 
         // Verificar otras condiciones de Chococat si no hemos ganado aún
@@ -120,6 +116,8 @@ public class GameController : MonoBehaviour
         botonOponente.interactable = false;
     }
 
+
+    //Desactiva todos los modelos exceptuando Pompompurin
     private void DesactivarTodosLosModelos()
     {
         // Desactivar todos los modelos de oponentes
@@ -128,7 +126,7 @@ public class GameController : MonoBehaviour
             oponente.SetActive(false);
         }
 
-        // Desactivar modelos de Chococat
+        // Desactiva el modelo de Chococat
         foreach (GameObject cat in chococat)
         {
             cat.SetActive(false);
@@ -137,12 +135,14 @@ public class GameController : MonoBehaviour
         personajePrincipal.SetActive(false);
     }
 
+    // Verifica si el marcador está visible
     private bool EsMarcadorVisible(ObserverBehaviour marcador)
     {
         return marcador.TargetStatus.Status == Status.TRACKED ||
                marcador.TargetStatus.Status == Status.EXTENDED_TRACKED;
     }
 
+    // Verifica si el marcador de Pompompurin está visible y maneja la lógica del juego
     private void VerificarMarcadorPersonaje()
     {
         bool isPersonajeVisible = EsMarcadorVisible(marcadorPersonaje);
@@ -150,7 +150,6 @@ public class GameController : MonoBehaviour
 
         if (isPersonajeVisible)
         {
-            // En tu método VerificarMarcadorPersonaje()
             if (isPersonajeVisible && !mostradaMensajeBienvenida)
             {
                 StartCoroutine(ShowSequentialTexts(
@@ -299,10 +298,11 @@ public class GameController : MonoBehaviour
                 case TouchPhase.Began:
                     // Guardar la posición inicial del toque
                     touchStartPosition = touch.position;
-                    isTouchTracking = true;
+                    isTouchTracking = true; // Iniciar seguimiento del toque
                     break;
 
                 case TouchPhase.Ended:
+
                 case TouchPhase.Canceled:
                     if (isTouchTracking)
                     {
@@ -312,8 +312,8 @@ public class GameController : MonoBehaviour
                         // Verificar si la distancia es suficiente para considerarlo un swipe
                         if (Mathf.Abs(swipeDistanceX) > minSwipeDistance)
                         {
-                            // Seleccionar marcador según dirección del swipe (0 para izquierda, 1 para derecha)
-                            SeleccionarMarcadorPorGesto(swipeDistanceX > 0 ? 1 : 0);
+                            bool esSwipeDerecha = swipeDistanceX > 0;
+                            SeleccionarMarcadorPorGesto(esSwipeDerecha);
                         }
 
                         isTouchTracking = false;
@@ -323,13 +323,25 @@ public class GameController : MonoBehaviour
         }
     }
 
-    private void SeleccionarMarcadorPorGesto(int indiceSeleccion)
+    private void SeleccionarMarcadorPorGesto(bool moverDerecha)
     {
+        //Verificar si hay marcadores visibles y si se está esperando selección
         if (!esperandoSeleccion || indicesMarcadoresVisibles.Count != 2)
             return;
 
-        // Obtener el índice real del marcador seleccionado
-        indiceOponenteActual = indicesMarcadoresVisibles[indiceSeleccion];
+        // Obtener posiciones X de los marcadores
+        float posX1 = marcadoresOponentes[indicesMarcadoresVisibles[0]].transform.position.x;
+        float posX2 = marcadoresOponentes[indicesMarcadoresVisibles[1]].transform.position.x;
+
+        // Determinar cuál es el izquierdo y cuál el derecho por su posición X
+        int indiceIzquierdo = posX1 < posX2 ? 0 : 1;
+        int indiceDerecho = posX1 < posX2 ? 1 : 0;
+
+        // Elegir el índice según la dirección del swipe
+        int indiceSeleccionado = moverDerecha ? indiceDerecho : indiceIzquierdo;
+
+        // Obtener el índice real del marcador y su destino
+        indiceOponenteActual = indicesMarcadoresVisibles[indiceSeleccionado];
         ObserverBehaviour marcadorDestino = marcadoresOponentes[indiceOponenteActual];
 
         // Verificar que el marcador siga visible
@@ -338,11 +350,13 @@ public class GameController : MonoBehaviour
             // Desactivar selección
             esperandoSeleccion = false;
 
-            // Indicar la selección al usuario
-            ActualizarEstadoJuego("Oponente " + (indiceSeleccion == 0 ? "izquierdo" : "derecho") + " seleccionado");
+            // Mostrar mensaje claro al usuario
+            string direccion = moverDerecha ? "derecho" : "izquierdo";
+            ActualizarEstadoJuego("Oponente " + direccion + " seleccionado");
 
             // Mover el personaje al marcador seleccionado
             StartCoroutine(MoverPersonaje(marcadorDestino.transform.position));
+
         }
         else
         {
@@ -382,6 +396,7 @@ public class GameController : MonoBehaviour
         // Determinar acción según destino
         if (posicionDestino == marcadorChococat.transform.position && oponentesDerrotados.Count >= oponentesNecesariosParaGanar)
         {
+
             ActualizarEstadoJuego("¡Rescataste a Chococat!");
             GanaJuego();
             yield break;
@@ -407,7 +422,8 @@ public class GameController : MonoBehaviour
         oponenteActual.SetActive(true);
 
         // Posicionar el oponente en el marcador
-        oponenteActual.transform.position = posicionDestino;
+        ObserverBehaviour marcadorActual = marcadoresOponentes[indiceOponenteActual];
+        oponenteActual.transform.SetParent(marcadorActual.transform, false);
         ActualizarEstadoJuego("¡Llegaste al oponente!\nPresiona tu botón");
 
         // Activar los botones de juego
@@ -419,6 +435,7 @@ public class GameController : MonoBehaviour
 
     private void ActualizarEstadoJuego(string mensaje)
     {
+
         textoEstadoJuego.text = mensaje;
         Debug.Log(mensaje);
     }
@@ -626,7 +643,9 @@ public class GameController : MonoBehaviour
         botonOponente.interactable = false;
 
         // Mostrar mensaje de victoria con texto específico de rescate
-        textoEstadoJuego.text = "¡Rescataste a Chococat!";
+        //textoEstadoJuego.text = "¡Rescataste a Chococat!";
+
+        ActualizarEstadoJuego("¡Rescataste a Chococat!");
 
         // Desactivar todos los oponentes
         foreach (GameObject oponente in modelosOponentes)
@@ -643,7 +662,7 @@ public class GameController : MonoBehaviour
 
     public void ReiniciarJuego()
     {
-        ActualizarEstadoJuego("Reiniciando...");
+        ActualizarEstadoJuego("Reiniciando juego...");
         //CARGAR LA ESCENA DE NUEVO
         UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
     }

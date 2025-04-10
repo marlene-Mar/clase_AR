@@ -28,10 +28,10 @@ public class GameController : MonoBehaviour
     public Button botonOponente; //Jugar oponente
 
     [Header("Configuración")]
-    public float velocidadMovimiento = 2.0f;
-    public int oponentesNecesariosParaGanar = 2;
-    public float distanciaMinimaCombate = 0.1f;
-    public float distanciaDeteccionChococat = 0.5f;
+    public float velocidadMovimiento = 2.0f; //Velocidad de movimiento del personaje
+    public int oponentesNecesariosParaGanar = 2; //Objetivo de oponentes a derrotar
+    public float distanciaMinimaCombate = 0.1f; //Distancia mínima para iniciar combate
+    public float distanciaDeteccionChococat = 0.5f; //Distancia mínima para detectar a Chococat
     public float minSwipeDistance = 30f; // Distancia mínima para considerar como swipe
 
     // Variables privadas
@@ -42,7 +42,6 @@ public class GameController : MonoBehaviour
     private GameObject oponenteActual;
     private bool mostradaMensajeBienvenida = false;
 
-
     //Datos del juego
     private int puntajePersonaje = 0;
     private int puntajeOponente = 0;
@@ -52,12 +51,13 @@ public class GameController : MonoBehaviour
     private bool esperandoNuevosMarcadores = false;
     private HashSet<int> oponentesDerrotados = new HashSet<int>(); //Identificar oponentes ya derrotados
 
-    string fullText = "Debes derrotar a 2 oponentes \ny rescatarlos del control de los malos\nSalva a Chococat";
+    //Mensaje inicial
+    string fullText = "Debes derrotar a 2 oponentes \ny rescatarlos del control " +
+        "de los malos\nSalva a Chococat";
     public float delay = 0.05f; // Tiempo entre cada letra
 
     // Variables para el control de gestos touch
     private Vector2 touchStartPosition;
-    private float distanciaSwipe = 30f;
     private bool isTouchTracking = false;
 
 
@@ -174,7 +174,6 @@ public class GameController : MonoBehaviour
     }
 
     //Corrutinas de indicaciones del juego
-
     IEnumerator ShowText()
     {
         textoEstadoJuego.text = ""; // Inicia con un texto vacío
@@ -200,7 +199,6 @@ public class GameController : MonoBehaviour
     }
 
     //Función para buscar marcadores de oponentes, solo si hay al menos 2 visibles
-
     private void BuscarMarcadoresOponentes()
     {
         // Verificar si hay al menos dos marcadores de oponentes visibles
@@ -613,14 +611,10 @@ public class GameController : MonoBehaviour
         {
             ActualizarEstadoJuego($"¡Ya has derrotado a {oponentesNecesariosParaGanar} oponentes!\nBusca a Chococat para ganar.");
         }
-        else if (oponentesRestantes > 0)
+        else if(oponentesRestantes > 0)
         {
             // Indicar que ya puede seleccionar nuevos marcadores
             ActualizarEstadoJuego("Listo para seguir.\nBusca 2 marcadores para elegir\nOponentes restantes: " + oponentesRestantes);
-        }
-        else
-        {
-            ActualizarEstadoJuego("¡Has derrotado a todos los oponentes!\nBusca a Chococat para finalizar.");
         }
     }
 
@@ -642,9 +636,6 @@ public class GameController : MonoBehaviour
         botonPersonaje.interactable = false;
         botonOponente.interactable = false;
 
-        // Mostrar mensaje de victoria con texto específico de rescate
-        //textoEstadoJuego.text = "¡Rescataste a Chococat!";
-
         ActualizarEstadoJuego("¡Rescataste a Chococat!");
 
         // Desactivar todos los oponentes
@@ -653,7 +644,7 @@ public class GameController : MonoBehaviour
             oponente.SetActive(false);
         }
 
-        // Activar todos los Chococat
+        // Activa a Chococat
         foreach (GameObject cat in chococat)
         {
             cat.SetActive(true);
